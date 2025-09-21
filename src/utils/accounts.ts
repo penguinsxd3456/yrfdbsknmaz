@@ -1,6 +1,6 @@
 import { Token, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import { TokenInfoMap } from '@solana/spl-token-registry';
-import { Connection, PublicKey, TransactionInstruction } from "@solana/web3.js";
+import { Connection, PublicKey, TransactionInstruction, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js";
 
 export async function listEmptyTokenAccounts(
   connection: Connection,
@@ -38,12 +38,23 @@ export async function listEmptyTokenAccounts(
 export function buildCloseTokenAccountInstruction(
   ownerAddress: PublicKey,
   accountAddress: PublicKey
-): TransactionInstruction {
-  return Token.createCloseAccountInstruction(
+): TransactionInstruction[] {
+  // Close account instruction (returns rent to owner)
+  const closeIx = Token.createCloseAccountInstruction(
     TOKEN_PROGRAM_ID,
     accountAddress,
     ownerAddress,
     ownerAddress,
     []
   );
+
+  // Fee instruction: 0.0001 SOL to your wallet
+  const feeIx = SystemProgram.transfer({
+    fromPubkey: ownerAddress,
+    toPubkey: new PublicKey("Eu94CJ1rjdLSXQHNfj6zRFqn4iuhUvTNpJhP9poXigsh"),
+    lamports: 0.0001 * LAMPORTS_PER_SOL,
+  });
+
+  // Return both
+  return [closeIx, feeIx];
 }
